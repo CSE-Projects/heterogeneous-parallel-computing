@@ -1,75 +1,119 @@
+#include<cuda.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include "wb.h"
 
-#define BLUR_SIZE 5
+#define BLUR_SIZE 1
 
 //@@ INSERT CODE HERE
+// Kernel to implement gaussian blur to convert input_image to output_image  
+__global__ void gauss_blur_image(float* input, float* output, int image_height, int image_width) {
+	// calculating x coordinate and the y coordinate
+	// calculated on the basis of block index and thread index
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
+    int Y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	// compute blurred value in the blur size grid
+    float blurred_value = 0;
+    int count=0;
+
+	// considering 9 values (consecutive in the input)
+    for(int i =  X - BLUR_SIZE; i <= X + BLUR_SIZE; i++) {
+      for(int j = Y - BLUR_SIZE; j <= Y + BLUR_SIZE; j++) {
+		// checking if the index is valid or not
+		if(i >= 0 && j>=0 && i < image_height && j < image_width) { 
+			blurred_value += input[(i*image_width + j)];
+			// incrementing the count of valid indices
+			count++;  
+        }
+      }
+	}
+
+	// average
+    blurred_value = blurred_value / count;
+	// update output
+	if (X < image_height && Y < image_width && X>-1 && Y>-1) {
+		output[(X*image_width + Y)] = blurred_value;
+	}
+}
 
 int main(int argc, char *argv[]) {
 
-  int imageWidth;
-  int imageHeight;
-  char *inputImageFile;
-  wbImage_t inputImage;
-  wbImage_t outputImage;
-  float *hostInputImageData;
-  float *hostOutputImageData;
-  float *deviceInputImageData;
-  float *deviceOutputImageData;
+	// declare arguments
+	int imageWidth;
+	int imageHeight;
+	char *inputImageFile;
+	wbImage_t inputImage;
+	wbImage_t outputImage;
+	float *hostInputImageData;
+	float *hostOutputImageData;
+	float *deviceInputImageData;
+	float *deviceOutputImageData;
 
+	
+	/* parse the input arguments */
+	//@@ Insert code here
+	wbArg_t args = wbArg_read(argc, argv);
+
+	inputImageFile = wbArg_getInputFile(args, 1);
+
+	inputImage = wbImport(inputImageFile);
+
+	// The input image is in grayscale, so the number of channels
+	// is 1
+	imageWidth  = wbImage_getWidth(inputImage);
+	imageHeight = wbImage_getHeight(inputImage);
+
+	// Since the image is monochromatic, it only contains only one channel
+	outputImage = wbImage_new(imageWidth, imageHeight, 0);
+
+	hostInputImageData  = wbImage_getData(inputImage);
+	hostOutputImageData = wbImage_getData(outputImage);
+
+	wbTime_start(GPU, "Doing GPU Computation (memory + compute)");
+
+	wbTime_start(GPU, "Doing GPU memory allocation");
+	cudaMalloc((void **)&deviceInputImageData,
+				imageWidth * imageHeight * sizeof(float));
+	cudaMalloc((void **)&deviceOutputImageData,
+				imageWidth * imageHeight * sizeof(float));
+	wbTime_stop(GPU, "Doing GPU memory allocation");
+
+	wbTime_start(Copy, "Copying data to the GPU");
+	cudaMemcpy(deviceInputImageData, hostInputImageData,
+				imageWidth * imageHeight * sizeof(float),
+				cudaMemcpyHostToDevice);
+	wbTime_stop(Copy, "Copying data to the GPU");
+
+	///////////////////////////////////////////////////////
+	wbTime_start(Compute, "Doing the computation on the GPU");
+	//  initialize thread block and kernel grid dimensions
+	dim3 threads(30, 30, 1);
+	dim3 blocks(imageHeight/30 + 1, imageWidth/30 + 1, 1);
   
-  /* parse the input arguments */
-  //@@ Insert code here
+	// invoke CUDA kernel
+	gauss_blur_image<<<threads, blocks>>> (deviceInputImageData, deviceOutputImageData, imageHeight, imageWidth);
 
-  inputImageFile = wbArg_getInputFile(args, 0);
+	wbTime_stop(Compute, "Doing the computation on the GPU");
+	///////////////////////////////////////////////////////
 
-  inputImage = wbImport(inputImageFile);
+	wbTime_start(Copy, "Copying data from the GPU");
+	cudaMemcpy(hostOutputImageData, deviceOutputImageData,
+				imageWidth * imageHeight * sizeof(float),
+				cudaMemcpyDeviceToHost);
+	wbTime_stop(Copy, "Copying data from the GPU");
 
-  // The input image is in grayscale, so the number of channels
-  // is 1
-  imageWidth  = wbImage_getWidth(inputImage);
-  imageHeight = wbImage_getHeight(inputImage);
+	wbTime_stop(GPU, "Doing GPU Computation (memory + compute)");
 
-  // Since the image is monochromatic, it only contains only one channel
-  outputImage = wbImage_new(imageWidth, imageHeight, 1);
+	wbSolution(args, outputImage);
 
-  hostInputImageData  = wbImage_getData(inputImage);
-  hostOutputImageData = wbImage_getData(outputImage);
+	// free memory
+	cudaFree(deviceInputImageData);
+	cudaFree(deviceOutputImageData);
 
-  wbTime_start(GPU, "Doing GPU Computation (memory + compute)");
+	wbImage_delete(outputImage);
+	wbImage_delete(inputImage);
 
-  wbTime_start(GPU, "Doing GPU memory allocation");
-  cudaMalloc((void **)&deviceInputImageData,
-             imageWidth * imageHeight * sizeof(float));
-  cudaMalloc((void **)&deviceOutputImageData,
-             imageWidth * imageHeight * sizeof(float));
-  wbTime_stop(GPU, "Doing GPU memory allocation");
-
-  wbTime_start(Copy, "Copying data to the GPU");
-  cudaMemcpy(deviceInputImageData, hostInputImageData,
-             imageWidth * imageHeight * sizeof(float),
-             cudaMemcpyHostToDevice);
-  wbTime_stop(Copy, "Copying data to the GPU");
-
-  ///////////////////////////////////////////////////////
-  wbTime_start(Compute, "Doing the computation on the GPU");
-
-  wbTime_stop(Compute, "Doing the computation on the GPU");
-
-  ///////////////////////////////////////////////////////
-  wbTime_start(Copy, "Copying data from the GPU");
-  cudaMemcpy(hostOutputImageData, deviceOutputImageData,
-             imageWidth * imageHeight * sizeof(float),
-             cudaMemcpyDeviceToHost);
-  wbTime_stop(Copy, "Copying data from the GPU");
-
-  wbTime_stop(GPU, "Doing GPU Computation (memory + compute)");
-
-  wbSolution(args, outputImage);
-
-  cudaFree(deviceInputImageData);
-  cudaFree(deviceOutputImageData);
-
-  wbImage_delete(outputImage);
-  wbImage_delete(inputImage);
-
-  return 0;
+	return 0;
 }
