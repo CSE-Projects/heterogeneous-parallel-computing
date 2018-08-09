@@ -1,4 +1,6 @@
-#include "wb.h"
+// #include "wb.h"
+#include<bits/stdc++.h>
+using namespace std;
 
 #define CHANNELS 3
 
@@ -66,14 +68,13 @@ static void create_dataset(const int datasetNum, const int y,
   //@@ modify to create a separate directory
   // per dataset.
   // Eg.  ImageColorToGrayscale-Dataset-0, ImageColorToGrayscale-Dataset-1, ...
-  const char *dir_name =
+  const char *dir_name = "/";
 
   char *input_file_name  = "input.ppm";
   char *output_file_name = "output.pbm";
 
   unsigned char *input_data = generate_data(y, x);
-  unsigned char *output_data =
-      (unsigned char *)calloc(sizeof(unsigned char), y * x * 3);
+  unsigned char *output_data = (unsigned char *)calloc(sizeof(unsigned char), y * x);
 
   compute(output_data, input_data, y, x);
 
