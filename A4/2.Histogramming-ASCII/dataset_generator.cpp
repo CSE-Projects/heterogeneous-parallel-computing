@@ -1,5 +1,5 @@
-
-#include "wb.h"
+#include <bits/stdc++.h>
+using namespace std;
 
 static char *base_dir;
 const size_t NUM_BINS = 128;
@@ -21,6 +21,7 @@ static char *generate_data(size_t n) {
 
 static void write_data_str(char *file_name, const char *data, int num) {
   FILE *handle = fopen(file_name, "w");
+  fprintf(handle, "%u\n", num);
   for (int ii = 0; ii < num; ii++) {
     fprintf(handle, "%c", *data++);
   }
@@ -39,32 +40,30 @@ static void write_data_int(char *file_name, unsigned int *data, int num) {
 }
 
 static void create_dataset_fixed(int datasetNum, const char *str) {
-  const char *dir_name =
-      wbDirectory_create(wbPath_join(base_dir, datasetNum));
+  const char *dir_name = "/";
 
-  char *input_file_name  = wbPath_join(dir_name, "input.txt");
-  char *output_file_name = wbPath_join(dir_name, "output.raw");
-
+  char *input_file_name  = "input.txt";
+  char *output_file_name = "output.raw";
+  
   unsigned int *output_data =
       (unsigned int *)calloc(NUM_BINS, sizeof(unsigned int));
-
+  
   compute(output_data, str, strlen(str));
-
+  
   write_data_str(input_file_name, str, strlen(str));
   write_data_int(output_file_name, output_data, NUM_BINS);
 
   free(output_data);
-  free(input_file_name);
-  free(output_file_name);
+  // free(input_file_name);
+  // free(output_file_name);
 }
 
 static void create_dataset_random(int datasetNum, size_t input_length) {
 
-  const char *dir_name =
-      wbDirectory_create(wbPath_join(base_dir, datasetNum));
+  const char *dir_name = "/";
 
-  char *input_file_name  = wbPath_join(dir_name, "input.txt");
-  char *output_file_name = wbPath_join(dir_name, "output.raw");
+  char *input_file_name  = "input.txt";
+  char *output_file_name = "output.raw";
 
   char *str = generate_data(input_length);
   unsigned int *output_data =
@@ -77,19 +76,17 @@ static void create_dataset_random(int datasetNum, size_t input_length) {
 
   free(str);
   free(output_data);
-  free(input_file_name);
-  free(output_file_name);
+  // free(input_file_name);
+  // free(output_file_name);
 }
 
 int main() {
-  base_dir =
-      wbPath_join(wbDirectory_current(), "TextHistogram", "Dataset");
-
-  create_dataset_fixed(0, "the quick brown fox jumps over the lazy dog");
-  create_dataset_fixed(1, "gpu teaching kit - accelerated computing");
-  create_dataset_random(2, 16);
-  create_dataset_random(3, 513);
-  create_dataset_random(4, 511);
-  create_dataset_random(5, 1);
+  base_dir = "./2.Histogramming-ASCII";
+  // create_dataset_fixed(0, "the quick brown fox jumps over the lazy dog");
+  // create_dataset_fixed(1, "gpu teaching kit - accelerated computing");
+  // create_dataset_random(2, 16);
+  create_dataset_random(3, 5100003);
+  // create_dataset_random(4, 511);
+  // create_dataset_random(5, 1);
   return 0;
 }
