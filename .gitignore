@@ -6,4 +6,5 @@
 *.raw
 *.ppm
 *.pbm
+*.txt
 *.vscode

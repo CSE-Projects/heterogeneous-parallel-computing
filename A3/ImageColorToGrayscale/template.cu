@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
 	///////////////////////////////////////////////////////
 	wbTime_start(Copy, "Copying data from the GPU");
-	cudaMemcpy(hostOutputImageData, deviceOutputImageData,
+	cudaMemcpy(hostOutputImageData, deviceOutputImageData,	
 				imageWidth * imageHeight * sizeof(float),
 				cudaMemcpyDeviceToHost);
 	wbTime_stop(Copy, "Copying data from the GPU");
