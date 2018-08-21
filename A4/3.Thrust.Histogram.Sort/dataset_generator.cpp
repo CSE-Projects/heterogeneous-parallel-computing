@@ -1,5 +1,6 @@
-
-#include "wb.h"
+#include <bits/stdc++.h>
+// #include "wb.h"
+using namespace std;
 
 static char *base_dir;
 const size_t NUM_BINS      = 32;
@@ -8,7 +9,7 @@ const unsigned int BIN_CAP = 127;
 static void compute(unsigned int *bins, unsigned int *input, int num) {
   for (int i = 0; i < num; ++i) {
     int idx = input[i];
-    if (bins[idx] < BIN_CAP)
+    // if (bins[idx] < BIN_CAP)
       ++bins[idx];
   }
 }
@@ -34,11 +35,11 @@ static void write_data(char *file_name, unsigned int *data, int num) {
 static void create_dataset(int datasetNum, size_t input_length,
                            size_t num_bins) {
 
-  const char *dir_name =
-      wbDirectory_create(wbPath_join(base_dir, datasetNum));
-
-  char *input_file_name  = wbPath_join(dir_name, "input.raw");
-  char *output_file_name = wbPath_join(dir_name, "output.raw");
+  // const char *dir_name =
+  //     wbDirectory_create(wbPath_join(base_dir, datasetNum));
+  const char *dir_name = "/";
+  char *input_file_name  = "input.raw";
+  char *output_file_name = "output.raw";
 
   unsigned int *input_data = generate_data(input_length, num_bins);
   unsigned int *output_data =
@@ -54,8 +55,7 @@ static void create_dataset(int datasetNum, size_t input_length,
 }
 
 int main() {
-  base_dir =
-      wbPath_join(wbDirectory_current(), "ThrustHistogramSort", "Dataset");
+  base_dir = "./1.Histogramming-Numbers";;
 
   create_dataset(0, 16, NUM_BINS);
   create_dataset(1, 1024, NUM_BINS);
