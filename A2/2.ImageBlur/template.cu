@@ -20,16 +20,16 @@ __global__ void gauss_blur_image(float* input, float* output, int image_height, 
 
 	// considering 9 values (consecutive in the input)
     for(int i =  X - BLUR_SIZE; i <= X + BLUR_SIZE; i++) {
-      for(int j = Y - BLUR_SIZE; j <= Y + BLUR_SIZE; j++) {
-		// checking if the index is valid or not
-		if(i >= 0 && j >= 0 && i < image_height && j < image_width) { 
-			blurred_val1 += input[3 * (i*image_width + j)];
-            blurred_val2 += input[3 * (i*image_width + j) + 1];
-            blurred_val3 += input[3 * (i*image_width + j) + 2];
-			// incrementing the count of valid indices
-			count++;  
-        }
-      }
+      	for(int j = Y - BLUR_SIZE; j <= Y + BLUR_SIZE; j++) {
+			// checking if the index is valid or not
+			if(i >= 0 && j >= 0 && i < image_height && j < image_width) { 
+				blurred_val1 += input[3 * (i*image_width + j)];
+				blurred_val2 += input[3 * (i*image_width + j) + 1];
+				blurred_val3 += input[3 * (i*image_width + j) + 2];
+				// incrementing the count of valid indices
+				count++;  
+			}
+      	}	
 	}
 
 	// average

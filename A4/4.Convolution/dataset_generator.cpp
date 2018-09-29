@@ -1,54 +1,57 @@
-#include "wb.h"
-#include "limits.h"
+#include <bits/stdc++.h>
+#include <sstream>
+using namespace std;
+#define CHANNELS 3
 
-static char *base_dir;
+static char baseDir[200];
 
-char *generateInput(int /*datasetNum*/, char *dirName,
-                    wbGenerateParams_t params) {
-  char *input_file_name = wbPath_join(dirName, "input0.ppm");
-  wbDataset_generate(input_file_name, wbExportKind_ppm, params);
-  return input_file_name;
-}
 
-char *generateMask(int /*datasetNum*/, char *dirName) {
-  // Mask generation parameters
-  wbRaw_GenerateParams_t raw_params;
-  raw_params.rows   = 5;
-  raw_params.cols   = 5;
-  raw_params.minVal = 0;
-  raw_params.maxVal = 1.0f / 25.0f;
-  raw_params.type   = wbType_float;
+// char *generateInput(int datasetNum, char *dirName,
+//                     wbGenerateParams_t params) {
+//   char *input_file_name = wbPath_join(dirName, "input0.ppm");
+//   wbDataset_generate(input_file_name, wbExportKind_ppm, params);
+//   return input_file_name;
+// }
 
-  // Generation parameters are just the image generation parameters
-  wbGenerateParams_t params;
-  params.raw = raw_params;
+// char *generateMask(int datasetNum, char *dirName) {
+//   // Mask generation parameters
+//   wbRaw_GenerateParams_t raw_params;
+//   raw_params.rows   = 5;
+//   raw_params.cols   = 5;
+//   raw_params.minVal = 0;
+//   raw_params.maxVal = 1.0f / 25.0f;
+//   raw_params.type   = wbType_float;
 
-  char *mask_file_name = wbPath_join(dirName, "input1.raw");
-  wbDataset_generate(mask_file_name, wbExportKind_raw, params);
-  return mask_file_name;
-}
+//   // Generation parameters are just the image generation parameters
+//   wbGenerateParams_t params;
+//   params.raw = raw_params;
+
+//   char *mask_file_name = wbPath_join(dirName, "input1.raw");
+//   wbDataset_generate(mask_file_name, wbExportKind_raw, params);
+//   return mask_file_name;
+// }
 
 float clamp(float x) {
   return std::min(std::max(x, 0.0f), 1.0f);
 }
 
-void compute(wbImage_t output, wbImage_t input, float *mask, int mask_rows,
-             int mask_cols) {
+unsigned char * compute(unsigned char *data, float *mask, int height,
+             int width) {
 
   const int num_channels = 3;
 
-  float *inputData  = wbImage_getData(input);
-  float *outputData = wbImage_getData(output);
+  float inputData[height * width * num_channels];
+  for(int i =0 ;i<height*width*num_channels;++i){
+      inputData[i] = ((int)data[i])/255.0;
+  }
 
-  int img_width  = wbImage_getWidth(input);
-  int img_height = wbImage_getHeight(input);
+  float *outputData = (float *) malloc(height*width*3*sizeof(float));
 
-  assert(img_width == wbImage_getWidth(output));
-  assert(img_height == wbImage_getHeight(output));
-  assert(mask_rows % 2 == 1);
-  assert(mask_cols % 2 == 1);
-
-  int mask_radius_y = mask_rows / 2;
+  int img_width  = width;
+  int img_height = height;
+  int mask_rows = 5;
+  int mask_cols = 5;
+  int mask_radius_y = mask_rows / 2; // 5 X 5 mask matrix is fixed
   int mask_radius_x = mask_cols / 2;
 
   for (int out_y = 0; out_y < img_height; ++out_y) {
@@ -67,9 +70,11 @@ void compute(wbImage_t output, wbImage_t input, float *mask, int mask_rows,
               acc +=
                   inputData[(in_y * img_width + in_x) * num_channels + c] *
                   mask[mask_y * mask_cols + mask_x];
-            } else {
-              acc += 0.0f;
-            }
+            } 
+            // else {
+            //   acc += 0.0f;
+            // }
+            
           }
         }
         // fprintf(stderr, "%f %f\n", clamp(acc));
@@ -78,56 +83,125 @@ void compute(wbImage_t output, wbImage_t input, float *mask, int mask_rows,
       }
     }
   }
+  unsigned char *output = (unsigned char *) malloc(height*width*3*sizeof(unsigned char));
+  for(int i =0;i<height*width*num_channels;++i){
+      output[i] = (unsigned char) floor(outputData[i] * 255);
+  }
+  return output;
 }
+float *generate_data_mask(const unsigned int y,
+                                    const unsigned int x) {
+  /* raster of y rows
+     R, then G, then B pixel
+     if maxVal < 256, each channel is 1 byte
+     else, each channel is 2 bytes
+  */
+  unsigned int i;
 
+  const int maxVal = 5;
+  float *data = (float *)malloc(y * x * sizeof(float));
+
+  float *p = data;
+  for (i = 0; i < y * x; ++i) {
+    float r = (rand()%25 + 1.00)/125.00;
+    *p++             = r;
+  }
+  return data;
+}
+static unsigned char *generate_data(const unsigned int y,
+                                    const unsigned int x) {
+  /* raster of y rows
+     R, then G, then B pixel
+     if maxVal < 256, each channel is 1 byte
+     else, each channel is 2 bytes
+  */
+  unsigned int i;
+
+  const int maxVal    = 256;
+  unsigned char *data = (unsigned char *) malloc(y * x * 3*sizeof(unsigned char));
+
+  unsigned char *p = data;
+  for (i = 0; i < y * x; ++i) {
+    unsigned char r = rand() % maxVal;
+    unsigned char g = rand() % maxVal;
+    unsigned char b = rand() % maxVal;
+    *p++             = r;
+    *p++             = g;
+    *p++             = b;
+  }
+  return data;
+}
+static void write_data(const char *file_name, unsigned char *data,
+                       unsigned int width, unsigned int height,
+                       unsigned int channels) {
+  FILE *handle = fopen(file_name, "w");
+    fprintf(handle, "P6\n");
+    fprintf(handle, "#Created by %s\n", __FILE__);
+    fprintf(handle, "%d %d\n", width, height);
+    fprintf(handle, "255\n");
+    // fwrite(data, width * channels * sizeof(unsigned char), height, handle);
+    for(int i=0;i<width*height*channels;++i){
+    	fprintf(handle,"%u ",data[i]);
+    	// cout<<"hi : "<<" "<<i<<" "<<height<<" "<<width<<" "<<channels<<" "<<(int)data[i]<<"\n";
+    }
+  fflush(handle);
+  fclose(handle);
+}
+static void write_data_mask(const char *file_name, float *data,
+                       unsigned int width, unsigned int height,
+                       unsigned int channels) {
+  FILE *handle = fopen(file_name, "w");
+      for(int j=0;j<height;++j){
+      for(int i=0;i<width*channels;++i){
+          fprintf(handle,"%f ",data[j*width + i]);
+      }
+      // fprintf(handle,"\n");
+      }  
+  fflush(handle);
+  fclose(handle);
+}
 void generate(int datasetNum, int height, int width, int minVal,
               int maxVal) {
-  char *dir_name = wbPath_join(base_dir, datasetNum);
 
-  // Image generation parameters
-  wbPPM_GenerateParams_t ppm_params;
-  ppm_params.height   = height;
-  ppm_params.width    = width;
-  ppm_params.channels = 3;
-  ppm_params.minVal   = minVal;
-  ppm_params.maxVal   = maxVal;
+  unsigned char * data = generate_data(height,width);
 
-  // Generation parameters are just the image generation parameters
-  wbGenerateParams_t params;
-  params.ppm = ppm_params;
+  float * data_mask = generate_data_mask(5,5);
+  string sin,sout,sin2;
+  sin = "input";
+  sout = "output";
+  sin2 = "input";
+  sin.push_back(char(datasetNum + '0'));
+  sin += "_0.ppm";
+  sin2.push_back(char(datasetNum + '0'));
+  sin2 += "_1.raw";
+  sout.push_back(char(datasetNum + '0'));
+  sout += ".ppm";
 
-  char *input_image_file_name =
-      generateInput(datasetNum, dir_name, params);
-  char *input_mask_file_name = generateMask(datasetNum, dir_name);
+  const char *input_image_file_name = sin.c_str();
+  const char *input_mask_file_name = sin2.c_str();
+  const char *output_image_file_name = sout.c_str();
 
-  // Import mask and image
-  wbImage_t inputImage = wbImport(input_image_file_name);
-  int mask_rows, mask_cols;
-  float *mask_data =
-      (float *)wbImport(input_mask_file_name, &mask_rows, &mask_cols);
+  // cout<<input_mask_file_name<<"\n";
+  
+  write_data(input_image_file_name,data,width,height,3); 
+  write_data_mask(input_mask_file_name,data_mask,5,5,1);
 
-  // Create output image
-  wbImage_t outputImage = wbImage_new(width, height, 3);
-  compute(outputImage, inputImage, mask_data, mask_rows, mask_cols);
+  unsigned char *ans = compute(data,data_mask,height,width);
 
-  // Exporto output image
-  char *output_file_name = wbPath_join(dir_name, "output.ppm");
-  wbExport(output_file_name, outputImage);
-
-  free(input_image_file_name);
-  free(input_mask_file_name);
-  free(output_file_name);
+  write_data(output_image_file_name,ans,width,height,3);
 }
 
 int main(void) {
-  base_dir = wbPath_join(wbDirectory_current(), "Convolution", "Dataset");
+  // getcwd(baseDir,sizeof(baseDir));
   generate(0, 64, 64, 0, 1);
-  generate(1, 128, 64, 0, 1);
-  generate(2, 64, 128, 0, 1);
-  generate(3, 64, 5, 0, 1);
-  generate(4, 64, 3, 0, 1);
-  generate(5, 228, 128, 0, 1);
-  generate(6, 28, 12, 0, 1);
+  // generate(1, 128, 64, 0, 1);
+  // generate(2, 64, 128, 0, 1);
+  // generate(3, 64, 5, 0, 1);
+  // generate(4, 64, 3, 0, 1);
+  // generate(5, 228, 128, 0, 1);
+  // generate(6, 256, 256, 0, 1);
+  // generate(7, 5, 5, 0, 1);
+
 
   return 0;
 }

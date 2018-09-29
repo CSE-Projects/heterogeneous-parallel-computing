@@ -57,7 +57,7 @@ __global__ void TiledMatrixMultiplication(int *device_A, int *device_B, int *dev
         for (int j = 0; j < TILE_SIZE; ++j)
             device_C_value += (shared_A[threadIdx.y][j] * shared_B[j][threadIdx.x]);
 
-        __syncthreads();
+        __syncthreads();    
     }
 
     // Assigning the device_C_value
